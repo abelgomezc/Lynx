@@ -1,0 +1,22 @@
+/* Lynx - © 2026 Abel Gomez. Todos los derechos reservados. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-lynx-bg text-lynx-text font-sans;
+    margin: 0;
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .glass {
+    background: rgba(18, 18, 30, 0.8);
+    backdrop-filter: blur(16px);
+    border: 0.5px solid rgba(108, 99, 255, 0.25);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(108, 99, 255, 0.1);
+  }
+}

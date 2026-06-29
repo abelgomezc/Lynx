@@ -1,0 +1,83 @@
+# =====================================================================
+#  Lynx - Infraestructura para modo HÍBRIDO
+#  © 2026 Abel Gomez. Todos los derechos reservados.
+#
+#  Levanta SOLO lo que es incómodo de instalar en Windows:
+#    PostgreSQL (con pgvector), Redis, Zookeeper, Kafka y el voice-service
+#    (que necesita ffmpeg + Whisper). Los 6 servicios Java y el frontend
+#    React se ejecutan en LOCAL con Maven / npm.
+#
+#  Arrancar:  docker compose -f docker-compose.infra.yml up -d
+#  Detener:   docker compose -f docker-compose.infra.yml down
+#
+#  NOTA: PostgreSQL se publica en el host en el puerto 5433 para no chocar
+#  con un PostgreSQL local en 5432. Los servicios Java locales deben apuntar
+#  a localhost:5433 (los scripts de arranque ya lo hacen).
+# =====================================================================
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: lynx-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - lynx-pg-data:/var/lib/postgresql/data
+      - ./scripts/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [lynx-net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: lynx-redis
+    command: ["redis-server", "--requirepass", "redis_lynx_2024"]
+    ports:
+      - "6379:6379"
+    networks: [lynx-net]
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: lynx-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks: [lynx-net]
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: lynx-kafka
+    depends_on: [zookeeper]
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      # Listener interno (red docker) y externo (host:9092 para los servicios locales)
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks: [lynx-net]
+
+  voice-service:
+    build:
+      context: ./voice-service
+      dockerfile: Dockerfile
+    container_name: lynx-voice
+    ports:
+      - "8083:8083"
+    networks: [lynx-net]
+
+volumes:
+  lynx-pg-data:
+
+networks:
+  lynx-net:
+    driver: bridge

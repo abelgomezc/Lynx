@@ -1,0 +1,10 @@
+# Lynx - voice-service
+# © 2026 Abel Gomez. Todos los derechos reservados.
+fastapi>=0.100.0
+uvicorn>=0.23.0
+openai-whisper>=20230918
+librosa>=0.10.0
+numpy>=1.24.0
+python-multipart>=0.0.6
+scipy>=1.10.0
+soundfile>=0.12.1

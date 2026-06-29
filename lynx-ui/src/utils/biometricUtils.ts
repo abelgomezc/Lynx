@@ -1,0 +1,47 @@
+/*
+ * Lynx - © 2026 Abel Gomez. Todos los derechos reservados.
+ */
+
+/** Instrucciones aleatorias de liveness (anti-spoofing). */
+export const ACCIONES_LIVENESS = [
+  'Parpadea dos veces',
+  'Gira la cabeza levemente a la derecha',
+  'Sonríe',
+  'Abre la boca',
+] as const
+
+export function accionLivenessAleatoria(): string {
+  return ACCIONES_LIVENESS[Math.floor(Math.random() * ACCIONES_LIVENESS.length)]
+}
+
+/** Captura un fotograma del video como dataURL (base64) para evidencia. */
+export function capturarFoto(video: HTMLVideoElement): string {
+  const canvas = document.createElement('canvas')
+  canvas.width = video.videoWidth || 640
+  canvas.height = video.videoHeight || 480
+  const ctx = canvas.getContext('2d')
+  if (ctx) ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+  return canvas.toDataURL('image/jpeg', 0.7)
+}
+
+/** Detecta un identificador simple del dispositivo/navegador. */
+export function detectarDispositivo(): string {
+  const ua = navigator.userAgent
+  const nav = /Chrome/.test(ua)
+    ? 'Chrome'
+    : /Firefox/.test(ua)
+      ? 'Firefox'
+      : /Safari/.test(ua)
+        ? 'Safari'
+        : 'Navegador'
+  const so = /Windows/.test(ua)
+    ? 'Windows'
+    : /Mac/.test(ua)
+      ? 'macOS'
+      : /Android/.test(ua)
+        ? 'Android'
+        : /Linux/.test(ua)
+          ? 'Linux'
+          : 'SO'
+  return `${nav}/${so}`
+}
