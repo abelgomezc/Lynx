@@ -12,10 +12,42 @@ export const useVoiceCapture = () => {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
   const [duracion, setDuracion] = useState(0)
   const [nivelAudio, setNivelAudio] = useState(0)
+  const [micActivo, setMicActivo] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Solicita/enciende el micrófono (dispara el prompt del navegador).
+  const encenderMicrofono = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach((t) => t.stop()) // solo para pedir permiso
+      setMicActivo(true)
+      setError(null)
+      return true
+    } catch {
+      setMicActivo(false)
+      setError(
+        'No se pudo acceder al micrófono. Si lo bloqueaste, actívalo desde el ' +
+          'candado 🔒 de la barra de direcciones y pulsa "Encender micrófono".'
+      )
+      return false
+    }
+  }, [])
 
   const iniciarGrabacion = useCallback(async () => {
     setAudioBlob(null)
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    let stream: MediaStream
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      setMicActivo(true)
+      setError(null)
+    } catch {
+      setMicActivo(false)
+      setError(
+        'No se pudo acceder al micrófono. Actívalo desde el candado 🔒 del ' +
+          'navegador y pulsa "Encender micrófono".'
+      )
+      return
+    }
     const mediaRecorder = new MediaRecorder(stream)
     const chunks: BlobPart[] = []
 
@@ -56,5 +88,15 @@ export const useVoiceCapture = () => {
     setGrabando(false)
   }, [])
 
-  return { grabando, audioBlob, duracion, nivelAudio, iniciarGrabacion, detenerGrabacion }
+  return {
+    grabando,
+    audioBlob,
+    duracion,
+    nivelAudio,
+    micActivo,
+    error,
+    encenderMicrofono,
+    iniciarGrabacion,
+    detenerGrabacion,
+  }
 }

@@ -3,6 +3,8 @@
  */
 package com.lynx.auth.controller;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lynx.auth.dto.request.LoginFaceRequest;
 import com.lynx.auth.dto.request.LoginVoiceRequest;
 import com.lynx.auth.dto.request.RefreshRequest;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.Map;
 
 /** Endpoints de registro, autenticación biométrica dual y gestión de tokens. */
@@ -36,6 +39,9 @@ public class AuthController {
 
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @PostMapping("/register")
     public ResponseEntity<UsuarioResponse> registrar(@Valid @RequestBody RegistroRequest request) {
@@ -53,6 +59,37 @@ public class AuthController {
             @RequestParam("fraseEsperada") String fraseEsperada,
             @RequestParam("idUsuario") Long idUsuario) {
         return ResponseEntity.ok(authService.registrarVoz(audio, fraseEsperada, idUsuario));
+    }
+
+    /** Registro ATÓMICO: crea el usuario y guarda cara + voz en una sola operación. */
+    @PostMapping(value = "/register/complete", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<UsuarioResponse> registrarCompleto(
+            @RequestParam("nombre") String nombre,
+            @RequestParam("email") String email,
+            @RequestParam(value = "departamento", required = false) String departamento,
+            @RequestParam("embedding") String embeddingJson,
+            @RequestParam(value = "fotoReferencia", required = false) String fotoReferencia,
+            @RequestParam("audio") MultipartFile audio,
+            @RequestParam("fraseEsperada") String fraseEsperada) throws Exception {
+        List<Double> embedding = objectMapper.readValue(embeddingJson, new TypeReference<List<Double>>() {});
+        RegistroRequest datos = RegistroRequest.builder()
+                .nombre(nombre)
+                .email(email)
+                .departamento(departamento)
+                .rol("EMPLEADO")
+                .build();
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(authService.registrarCompleto(datos, embedding, fotoReferencia, audio, fraseEsperada));
+    }
+
+    @GetMapping("/register/frase")
+    public ResponseEntity<Map<String, String>> fraseRegistro() {
+        return ResponseEntity.ok(Map.of("frase", authService.fraseRegistro()));
+    }
+
+    @GetMapping("/register/disponible")
+    public ResponseEntity<Map<String, Boolean>> emailDisponible(@RequestParam("email") String email) {
+        return ResponseEntity.ok(Map.of("disponible", authService.emailDisponible(email)));
     }
 
     @PostMapping("/login/face")

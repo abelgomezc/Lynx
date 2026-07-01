@@ -61,6 +61,10 @@ whisper_cache/
 tmp/
 temp/
 
+# Logs de ejecución
+logs/
+*.out
+
 # Sistema operativo
 .DS_Store
 Thumbs.db

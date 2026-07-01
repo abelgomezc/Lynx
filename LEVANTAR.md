@@ -32,6 +32,20 @@
 
 ---
 
+## ⚡ Atajo: un solo comando
+
+Con Docker Desktop abierto y los JAR ya compilados:
+
+```bash
+bash scripts/levantar.sh
+```
+
+Arranca la infra Docker + los 6 servicios Java + el frontend, y deja los logs
+en `logs/`. Para detener todo, usa [DETENER.md](DETENER.md). El resto de esta
+guía explica el arranque paso a paso.
+
+---
+
 ## 1️⃣ Levantar la infraestructura (Docker)
 
 Con Docker Desktop abierto:

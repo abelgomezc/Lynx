@@ -122,6 +122,14 @@ public class FaceServiceImpl implements FaceService {
                 .build();
     }
 
+    @Override
+    @Transactional
+    public void eliminarBiometria(Long idUsuario) {
+        embeddingFacialRepository.eliminarPorUsuario(idUsuario);
+        embeddingVozRepository.eliminarPorUsuario(idUsuario);
+        log.info("Biometría eliminada para usuario {} (compensación)", idUsuario);
+    }
+
     // ---------------------------------------------------------------------
 
     private void validarDimensiones(List<Double> embedding) {

@@ -194,8 +194,11 @@ public class AuthServiceImpl implements AuthService {
         Usuario usuario = obtenerUsuario(idUsuario);
         VoiceRegistroDto resultado = voiceServiceClient.registrarVoz(
                 audio, fraseEsperada, String.valueOf(idUsuario));
+        log.info("Registro voz usuario {}: esperado='{}' transcrito='{}' textoCorrecto={}",
+                idUsuario, fraseEsperada, resultado.getTranscripcion(), resultado.getTextoCorrecto());
         if (resultado.getExitoso() == null || !resultado.getExitoso()) {
-            throw new VozNoVerificadaException("La frase leída no coincide. Intenta de nuevo.");
+            throw new VozNoVerificadaException(
+                    "La frase leída no coincide. Escuchamos: \"" + resultado.getTranscripcion() + "\". Intenta de nuevo.");
         }
         faceServiceClient.registrarVoiceprint(VoiceprintDto.builder()
                 .idUsuario(idUsuario)
@@ -205,6 +208,85 @@ public class AuthServiceImpl implements AuthService {
         usuarioRepository.save(usuario);
         log.info("Voz registrada. Registro biométrico COMPLETO para usuario {}", idUsuario);
         return usuarioMapper.toResponse(usuario);
+    }
+
+    @Override
+    @Transactional
+    public UsuarioResponse registrarCompleto(RegistroRequest datos, java.util.List<Double> embedding,
+                                             String fotoReferencia, MultipartFile audio, String fraseEsperada) {
+        // 1) Validaciones que no persisten nada
+        if (usuarioRepository.existsByEmail(datos.getEmail())) {
+            throw new RegistroException("EMAIL_DUPLICADO", "Ya existe un usuario con ese email");
+        }
+        if (embedding == null || embedding.isEmpty()) {
+            throw new RegistroException("ROSTRO_FALTANTE", "Falta el registro facial");
+        }
+
+        // 2) Procesar la voz PRIMERO (lo más propenso a fallar). Si falla,
+        //    aún no se ha guardado NADA en la base de datos.
+        VoiceRegistroDto voz = voiceServiceClient.registrarVoz(
+                audio, fraseEsperada, "0");
+        log.info("Registro completo: esperado='{}' transcrito='{}' textoCorrecto={}",
+                fraseEsperada, voz.getTranscripcion(), voz.getTextoCorrecto());
+        if (voz.getExitoso() == null || !voz.getExitoso()) {
+            throw new VozNoVerificadaException(
+                    "La frase leída no coincide. Escuchamos: \"" + voz.getTranscripcion()
+                            + "\". Vuelve a grabar.");
+        }
+
+        // 3) Crear el usuario
+        Rol rol = datos.getRol() != null ? Rol.valueOf(datos.getRol().toUpperCase()) : Rol.EMPLEADO;
+        Usuario usuario = usuarioRepository.save(Usuario.builder()
+                .nombre(datos.getNombre())
+                .email(datos.getEmail())
+                .rol(rol)
+                .departamento(datos.getDepartamento())
+                .estadoRegistro(EstadoRegistro.PENDIENTE_BIOMETRIA)
+                .esActivo(true)
+                .intentosFallidos(0)
+                .build());
+
+        // 4) Guardar cara + voz en face-service. Si algo falla, compensar:
+        //    borrar la biometría y el usuario para no dejar datos a medias.
+        try {
+            faceServiceClient.registrarRostro(FaceRegistroDto.builder()
+                    .idUsuario(usuario.getId())
+                    .embedding(embedding)
+                    .fotoReferencia(fotoReferencia)
+                    .build());
+            faceServiceClient.registrarVoiceprint(VoiceprintDto.builder()
+                    .idUsuario(usuario.getId())
+                    .voiceprint(voz.getVoiceprint())
+                    .build());
+        } catch (Exception ex) {
+            log.error("Fallo guardando biometría, revirtiendo usuario {}: {}",
+                    usuario.getId(), ex.getMessage());
+            try {
+                faceServiceClient.eliminarBiometria(usuario.getId());
+            } catch (Exception limpieza) {
+                log.warn("No se pudo limpiar biometría de {}: {}", usuario.getId(), limpieza.getMessage());
+            }
+            usuarioRepository.delete(usuario);
+            throw new RegistroException("REGISTRO_INCOMPLETO",
+                    "No se pudo guardar la biometría. No se registró nada, inténtalo de nuevo.");
+        }
+
+        // 5) Marcar COMPLETO
+        usuario.setEstadoRegistro(EstadoRegistro.COMPLETO);
+        usuarioRepository.save(usuario);
+        log.info("Registro COMPLETO y atómico para usuario {} ({})", usuario.getId(), usuario.getEmail());
+        return usuarioMapper.toResponse(usuario);
+    }
+
+    @Override
+    public String fraseRegistro() {
+        return POOL_FRASES.get(RANDOM.nextInt(POOL_FRASES.size()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean emailDisponible(String email) {
+        return !usuarioRepository.existsByEmail(email);
     }
 
     @Override
@@ -257,6 +339,9 @@ public class AuthServiceImpl implements AuthService {
                 .collect(Collectors.joining(","));
 
         VoiceVerificacionDto verif = voiceServiceClient.verificarVoz(audio, fraseValida, voiceprintCsv);
+        log.info("Login voz usuario {}: esperado='{}' transcrito='{}' textoOk={} vozOk={} similitud={}",
+                usuario.getId(), fraseValida, verif.getTranscripcion(), verif.getTextoCorrecto(),
+                verif.getVozVerificada(), verif.getSimilitudVoz());
 
         if (verif.getExitoso() == null || !verif.getExitoso()) {
             FactorFallido factor = (verif.getTextoCorrecto() != null && !verif.getTextoCorrecto())

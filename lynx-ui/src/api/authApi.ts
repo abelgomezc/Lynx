@@ -21,6 +21,33 @@ export const authApi = {
     return api.post<Usuario>('/auth/register/voice', form).then((r) => r.data)
   },
 
+  // Registro ATÓMICO: envía datos + rostro + voz en una sola petición.
+  registrarCompleto: (
+    datos: RegistroRequest,
+    embedding: number[],
+    audio: Blob,
+    fraseEsperada: string,
+    fotoReferencia?: string
+  ) => {
+    const form = new FormData()
+    form.append('nombre', datos.nombre)
+    form.append('email', datos.email)
+    if (datos.departamento) form.append('departamento', datos.departamento)
+    form.append('embedding', JSON.stringify(embedding))
+    if (fotoReferencia) form.append('fotoReferencia', fotoReferencia)
+    form.append('audio', audio, 'voz.wav')
+    form.append('fraseEsperada', fraseEsperada)
+    return api.post<Usuario>('/auth/register/complete', form).then((r) => r.data)
+  },
+
+  fraseRegistro: () =>
+    api.get<{ frase: string }>('/auth/register/frase').then((r) => r.data.frase),
+
+  emailDisponible: (email: string) =>
+    api
+      .get<{ disponible: boolean }>(`/auth/register/disponible?email=${encodeURIComponent(email)}`)
+      .then((r) => r.data.disponible),
+
   loginFacial: (embedding: number[], ipAddress?: string, dispositivo?: string) =>
     api
       .post<AuthResponse>('/auth/login/face', { embedding, ipAddress, dispositivo })

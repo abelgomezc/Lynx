@@ -42,4 +42,8 @@ public interface EmbeddingFacialRepository extends JpaRepository<EmbeddingFacial
     @Modifying
     @Query(value = "UPDATE embeddings_faciales SET es_activo = false WHERE id_usuario = :idUsuario", nativeQuery = true)
     void desactivarPorUsuario(@Param("idUsuario") Long idUsuario);
+
+    @Modifying
+    @Query(value = "DELETE FROM embeddings_faciales WHERE id_usuario = :idUsuario", nativeQuery = true)
+    void eliminarPorUsuario(@Param("idUsuario") Long idUsuario);
 }

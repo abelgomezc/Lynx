@@ -19,4 +19,7 @@ public interface FaceService {
     void registrarVoiceprint(VoiceprintRequest request);
 
     VoiceprintResponse obtenerVoiceprint(Long idUsuario);
+
+    /** Elimina toda la biometría (facial y de voz) de un usuario. */
+    void eliminarBiometria(Long idUsuario);
 }

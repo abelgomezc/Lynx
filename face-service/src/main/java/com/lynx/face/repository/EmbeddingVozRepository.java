@@ -21,9 +21,13 @@ public interface EmbeddingVozRepository extends JpaRepository<EmbeddingVoz, Long
             """, nativeQuery = true)
     void insertar(@Param("idUsuario") Long idUsuario, @Param("mfcc") String mfcc);
 
-    /** Devuelve el voiceprint activo más reciente como texto "[v1,v2,...]". */
+    /**
+     * Devuelve el voiceprint activo más reciente como texto "[v1,v2,...]".
+     * Se usa CAST(... AS text) en lugar de ::text porque Hibernate interpreta
+     * el "::" de PostgreSQL como un parámetro con nombre y rompe la consulta.
+     */
     @Query(value = """
-            SELECT mfcc_features::text
+            SELECT CAST(mfcc_features AS text)
             FROM embeddings_voz
             WHERE id_usuario = :idUsuario AND es_activo = true
             ORDER BY fecha_creacion DESC
@@ -34,4 +38,8 @@ public interface EmbeddingVozRepository extends JpaRepository<EmbeddingVoz, Long
     @Modifying
     @Query(value = "UPDATE embeddings_voz SET es_activo = false WHERE id_usuario = :idUsuario", nativeQuery = true)
     void desactivarPorUsuario(@Param("idUsuario") Long idUsuario);
+
+    @Modifying
+    @Query(value = "DELETE FROM embeddings_voz WHERE id_usuario = :idUsuario", nativeQuery = true)
+    void eliminarPorUsuario(@Param("idUsuario") Long idUsuario);
 }

@@ -23,6 +23,19 @@ public interface AuthService {
 
     UsuarioResponse registrarVoz(MultipartFile audio, String fraseEsperada, Long idUsuario);
 
+    /**
+     * Registro ATÓMICO (todo o nada): valida la voz primero (sin persistir),
+     * crea el usuario y guarda cara + voz; si algo falla, revierte todo.
+     */
+    UsuarioResponse registrarCompleto(RegistroRequest datos, java.util.List<Double> embedding,
+                                      String fotoReferencia, MultipartFile audio, String fraseEsperada);
+
+    /** Frase aleatoria para leer durante el registro (sin usuario, sin Redis). */
+    String fraseRegistro();
+
+    /** Indica si un email está disponible (no registrado aún). */
+    boolean emailDisponible(String email);
+
     /** Factor 1: verifica el rostro y devuelve la frase para el factor de voz. */
     AuthResponse loginFacial(LoginFaceRequest request);
 

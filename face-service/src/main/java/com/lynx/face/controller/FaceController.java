@@ -12,6 +12,7 @@ import com.lynx.face.service.FaceService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -46,5 +47,11 @@ public class FaceController {
     @GetMapping("/voice/{idUsuario}")
     public ResponseEntity<VoiceprintResponse> obtenerVoiceprint(@PathVariable("idUsuario") Long idUsuario) {
         return ResponseEntity.ok(faceService.obtenerVoiceprint(idUsuario));
+    }
+
+    @DeleteMapping("/usuario/{idUsuario}")
+    public ResponseEntity<Void> eliminarBiometria(@PathVariable("idUsuario") Long idUsuario) {
+        faceService.eliminarBiometria(idUsuario);
+        return ResponseEntity.noContent().build();
     }
 }

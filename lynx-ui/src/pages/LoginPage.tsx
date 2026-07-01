@@ -12,6 +12,8 @@ import { useVoiceCapture } from '../hooks/useVoiceCapture'
 import { useLiveness } from '../hooks/useLiveness'
 import { detectarDispositivo } from '../utils/biometricUtils'
 import { FaceCapture } from '../components/biometric/FaceCapture'
+import { FaceTips } from '../components/biometric/FaceTips'
+import { PasoHeader } from '../components/biometric/PasoHeader'
 import { VoiceCapture } from '../components/biometric/VoiceCapture'
 import { LivenessCheck } from '../components/biometric/LivenessCheck'
 import { BiometricStatus } from '../components/biometric/BiometricStatus'
@@ -20,6 +22,7 @@ import { Card } from '../components/ui/Card'
 import { Alert } from '../components/ui/Alert'
 import { Spinner } from '../components/ui/Spinner'
 import { Copyright } from '../components/ui/Copyright'
+import { BiometricBackground } from '../components/ui/BiometricBackground'
 
 type Paso = 'inicio' | 'facial' | 'voz' | 'concedido'
 
@@ -40,12 +43,10 @@ export function LoginPage() {
   const [frase, setFrase] = useState('')
   const [confianzaFacial, setConfianzaFacial] = useState<number | undefined>()
 
-  // Inicia la cámara al entrar al paso facial
+  // Al entrar al paso facial solo se prepara el liveness. La cámara la
+  // enciende el usuario con el botón (el permiso se pide con un gesto).
   useEffect(() => {
-    if (paso === 'facial') {
-      face.iniciarCamara()
-      liveness.iniciar()
-    }
+    if (paso === 'facial') liveness.iniciar()
     return () => face.detenerCamara()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paso])
@@ -55,6 +56,16 @@ export function LoginPage() {
     setCaraOk(null)
     setVozOk(null)
     setPaso('facial')
+  }
+
+  // Cancela el inicio de sesión en curso y vuelve a la pantalla inicial
+  const cancelarLogin = () => {
+    face.detenerCamara()
+    if (voz.grabando) voz.detenerGrabacion()
+    setError(null)
+    setCaraOk(null)
+    setVozOk(null)
+    setPaso('inicio')
   }
 
   const verificarRostro = async () => {
@@ -115,17 +126,25 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 relative">
+      <BiometricBackground />
+      <div className="relative z-10 w-full flex flex-col items-center">
       <motion.h1
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-5xl font-bold tracking-widest text-lynx-primary mb-2"
+        className="text-5xl font-bold tracking-widest text-lynx-primary mb-2 lynx-glow"
       >
         LYNX
       </motion.h1>
       <p className="text-lynx-text/60 mb-8 text-sm">Autenticación Biométrica Dual · Cara + Voz</p>
 
-      <Card className="w-full max-w-xl flex flex-col items-center gap-6">
+      <motion.div
+        initial={{ opacity: 0, y: 24, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+        className="w-full max-w-xl"
+      >
+      <Card className="w-full flex flex-col items-center gap-6">
         {error && <Alert tipo="error" mensaje={error} />}
 
         {paso === 'inicio' && (
@@ -143,34 +162,62 @@ export function LoginPage() {
 
         {paso === 'facial' && (
           <>
-            {face.error && <Alert tipo="error" mensaje={face.error} />}
+            <PasoHeader
+              numero={1}
+              total={2}
+              titulo="Factor 1 · Reconocimiento facial"
+              descripcion="Realiza la acción de seguridad indicada y centra tu rostro en el óvalo. Cuando el recuadro esté verde, verifica."
+            />
+            {face.error && (
+              <>
+                <Alert tipo="error" mensaje={face.error} />
+                <Button variant="ghost" onClick={() => window.location.reload()}>
+                  Recargar página
+                </Button>
+              </>
+            )}
             {face.cargandoModelos && (
               <Alert tipo="info" mensaje="Cargando modelos de reconocimiento facial..." />
             )}
             <LivenessCheck accion={liveness.accion} restante={liveness.restante} />
             <FaceCapture
               videoRef={face.videoRef}
-              rostroDetectado={face.rostroDetectado}
+              estado={caraOk === false ? 'rojo' : face.estado}
+              mensaje={face.mensaje}
               confianza={face.confianza}
-              estado={caraOk === false ? 'error' : caraOk ? 'ok' : face.rostroDetectado ? 'ok' : 'idle'}
-              instruccion={face.mensaje}
             />
+            {!face.camaraActiva && (
+              <Button variant="secondary" onClick={face.iniciarCamara}>
+                📷 Encender cámara
+              </Button>
+            )}
+            <FaceTips />
             <Button
               onClick={verificarRostro}
-              disabled={cargando || !face.modelsLoaded || !face.rostroDetectado}
+              disabled={cargando || !face.modelsLoaded || !face.listoParaCapturar || !face.camaraActiva}
             >
               {cargando ? <Spinner size={18} /> : 'Verificar rostro'}
             </Button>
-            {!face.rostroDetectado && face.modelsLoaded && (
+            {!face.listoParaCapturar && face.modelsLoaded && (
               <p className="text-xs text-lynx-warning text-center">
-                El botón se activa cuando se detecte tu rostro.
+                El botón se activa cuando el recuadro esté en verde.
               </p>
             )}
+            <button onClick={cancelarLogin} className="text-xs text-lynx-text/50 hover:text-lynx-error">
+              Cancelar
+            </button>
           </>
         )}
 
         {paso === 'voz' && (
           <>
+            <PasoHeader
+              numero={2}
+              total={2}
+              titulo="Factor 2 · Verificación de voz"
+              descripcion="Pulsa Grabar y lee la frase mostrada, clara y completa. Puedes escucharte y regrabar antes de verificar. La frase cambia cada vez (anti-replay)."
+            />
+            {voz.error && <Alert tipo="error" mensaje={voz.error} />}
             <VoiceCapture
               frase={frase}
               grabando={voz.grabando}
@@ -178,6 +225,11 @@ export function LoginPage() {
               nivelAudio={voz.nivelAudio}
               audioBlob={voz.audioBlob}
             />
+            {!voz.micActivo && (
+              <Button variant="secondary" onClick={voz.encenderMicrofono}>
+                🎙️ Encender micrófono
+              </Button>
+            )}
             <div className="flex gap-3">
               {!voz.grabando ? (
                 <Button variant="secondary" onClick={voz.iniciarGrabacion}>
@@ -192,6 +244,9 @@ export function LoginPage() {
                 {cargando ? <Spinner size={18} /> : 'Verificar voz'}
               </Button>
             </div>
+            <button onClick={cancelarLogin} className="text-xs text-lynx-text/50 hover:text-lynx-error">
+              Cancelar
+            </button>
           </>
         )}
 
@@ -211,8 +266,10 @@ export function LoginPage() {
           <BiometricStatus caraOk={caraOk} vozOk={vozOk} />
         )}
       </Card>
+      </motion.div>
 
       <Copyright />
+      </div>
     </div>
   )
 }

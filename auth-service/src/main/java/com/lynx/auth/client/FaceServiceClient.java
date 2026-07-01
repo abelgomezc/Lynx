@@ -8,6 +8,7 @@ import com.lynx.auth.client.dto.FaceVerificacionDto;
 import com.lynx.auth.client.dto.FaceVerificarDto;
 import com.lynx.auth.client.dto.VoiceprintDto;
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,4 +29,7 @@ public interface FaceServiceClient {
 
     @GetMapping("/face/voice/{idUsuario}")
     VoiceprintDto obtenerVoiceprint(@PathVariable("idUsuario") Long idUsuario);
+
+    @DeleteMapping("/face/usuario/{idUsuario}")
+    void eliminarBiometria(@PathVariable("idUsuario") Long idUsuario);
 }

@@ -20,3 +20,17 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(108, 99, 255, 0.1);
   }
 }
+
+/* Latido de brillo del título LYNX */
+@keyframes lynxGlow {
+  0%,
+  100% {
+    text-shadow: 0 0 18px rgba(108, 99, 255, 0.5);
+  }
+  50% {
+    text-shadow: 0 0 34px rgba(108, 99, 255, 0.9), 0 0 10px rgba(0, 212, 170, 0.4);
+  }
+}
+.lynx-glow {
+  animation: lynxGlow 3s ease-in-out infinite;
+}
