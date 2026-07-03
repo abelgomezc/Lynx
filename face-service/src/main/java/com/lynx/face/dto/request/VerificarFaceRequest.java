@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-/** Verificación facial con datos de liveness anti-spoofing. */
+/** Verificación facial con evidencia de prueba de vida (anti-spoofing). */
 @Data
 @Builder
 @NoArgsConstructor
@@ -21,11 +21,11 @@ public class VerificarFaceRequest {
     @NotEmpty(message = "El embedding es obligatorio")
     private List<Double> embedding;
 
-    /** Acción de liveness solicitada (p. ej. "Parpadea dos veces"). */
+    /** Acción de liveness solicitada (PARPADEA, ABRE_BOCA, GIRA_CABEZA). */
     private String accionLiveness;
 
-    /** Si el frontend confirmó que la acción de liveness se ejecutó. */
-    private Boolean livenessSuperado;
+    /** Serie de métricas por fotograma; el servidor verifica que la acción ocurrió. */
+    private List<MuestraLivenessDto> muestrasLiveness;
 
     /** Foto del intento en base64 (para evidencia de spoofing). */
     private String fotoCaptura;

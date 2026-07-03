@@ -3,6 +3,7 @@
  */
 package com.lynx.face.service.impl;
 
+import com.lynx.face.dto.request.MuestraLivenessDto;
 import com.lynx.face.dto.request.RegistroFaceRequest;
 import com.lynx.face.dto.request.VerificarFaceRequest;
 import com.lynx.face.dto.request.VoiceprintRequest;
@@ -68,13 +69,11 @@ public class FaceServiceImpl implements FaceService {
     public FaceVerificacionResponse verificar(VerificarFaceRequest request) {
         validarDimensiones(request.getEmbedding());
 
-        // Anti-spoofing: el liveness debe haberse superado en el navegador
-        if (request.getLivenessSuperado() == null || !request.getLivenessSuperado()) {
-            faceEventProducer.publicarSpoofing(
-                    request.getIpAddress(), "Desconocido",
-                    request.getFotoCaptura(), "LIVENESS_FALLIDO");
-            throw new SpoofingDetectadoException("Prueba de vida no superada. Posible suplantación.");
-        }
+        // Anti-spoofing: el SERVIDOR verifica la prueba de vida a partir de la
+        // serie de métricas (no se confía en ningún flag del cliente). Una foto
+        // estática no puede parpadear, abrir la boca ni girar la cabeza.
+        verificarLiveness(request.getAccionLiveness(), request.getMuestrasLiveness(),
+                request.getIpAddress(), request.getFotoCaptura());
 
         EmbeddingFacialRepository.ResultadoBusqueda resultado =
                 embeddingFacialRepository.buscarMasCercano(aVectorString(request.getEmbedding()));
@@ -131,6 +130,47 @@ public class FaceServiceImpl implements FaceService {
     }
 
     // ---------------------------------------------------------------------
+
+    /**
+     * Verifica la prueba de vida en el SERVIDOR: comprueba que la acción
+     * solicitada realmente ocurrió analizando la serie de métricas.
+     * Una foto o pantalla no puede parpadear, abrir la boca ni girar.
+     */
+    private void verificarLiveness(String accion, List<MuestraLivenessDto> muestras,
+                                   String ip, String foto) {
+        if (accion == null || muestras == null || muestras.size() < 5) {
+            faceEventProducer.publicarSpoofing(ip, "Desconocido", foto, "SIN_PRUEBA_VIDA");
+            throw new SpoofingDetectadoException(
+                    "Prueba de vida insuficiente. Realiza la acción indicada frente a la cámara.");
+        }
+
+        double earMin = Double.MAX_VALUE, earMax = -Double.MAX_VALUE;
+        double marMin = Double.MAX_VALUE, marMax = -Double.MAX_VALUE;
+        double yawMin = Double.MAX_VALUE, yawMax = -Double.MAX_VALUE;
+        for (MuestraLivenessDto m : muestras) {
+            if (m.getEar() != null) { earMin = Math.min(earMin, m.getEar()); earMax = Math.max(earMax, m.getEar()); }
+            if (m.getMar() != null) { marMin = Math.min(marMin, m.getMar()); marMax = Math.max(marMax, m.getMar()); }
+            if (m.getYaw() != null) { yawMin = Math.min(yawMin, m.getYaw()); yawMax = Math.max(yawMax, m.getYaw()); }
+        }
+
+        boolean ok;
+        switch (accion) {
+            case "PARPADEA" -> ok = earMin < 0.20 && earMax > 0.27;      // ojo se cierra y abre
+            case "ABRE_BOCA" -> ok = marMax > 0.45 && (marMax - marMin) > 0.20;
+            case "GIRA_CABEZA" -> ok = (yawMax - yawMin) > 0.22;         // la cabeza gira
+            default -> ok = false;
+        }
+
+        log.info("Liveness accion={} ok={} earMin={} earMax={} marRange={} yawRange={}",
+                accion, ok, redondear(earMin), redondear(earMax),
+                redondear(marMax - marMin), redondear(yawMax - yawMin));
+
+        if (!ok) {
+            faceEventProducer.publicarSpoofing(ip, "Desconocido", foto, "ACCION_NO_DETECTADA:" + accion);
+            throw new SpoofingDetectadoException(
+                    "No detectamos la prueba de vida solicitada. Posible foto o video. Intenta de nuevo.");
+        }
+    }
 
     private void validarDimensiones(List<Double> embedding) {
         if (embedding == null || embedding.isEmpty()) {

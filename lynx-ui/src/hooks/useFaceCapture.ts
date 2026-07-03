@@ -5,6 +5,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as faceapi from 'face-api.js'
+import { calcularMetricas, type MuestraLiveness } from '../utils/livenessUtils'
 
 export type EstadoRostro = 'neutral' | 'rojo' | 'amber' | 'verde'
 
@@ -157,6 +158,31 @@ export const useFaceCapture = () => {
     return () => clearInterval(id)
   }, [modelsLoaded])
 
+  // Mide la prueba de vida: muestrea landmarks durante 'duracionMs' y
+  // devuelve la serie de métricas (EAR/MAR/yaw) para verificar en el backend.
+  const medirLiveness = useCallback(
+    async (duracionMs = 3500): Promise<MuestraLiveness[]> => {
+      const muestras: MuestraLiveness[] = []
+      if (!videoRef.current || !modelsLoaded) return muestras
+      const inicio = Date.now()
+      while (Date.now() - inicio < duracionMs) {
+        try {
+          const det = await faceapi
+            .detectSingleFace(videoRef.current)
+            .withFaceLandmarks()
+          if (det) {
+            muestras.push(calcularMetricas(det.landmarks.positions))
+          }
+        } catch {
+          /* frame no listo */
+        }
+        await new Promise((r) => setTimeout(r, 160))
+      }
+      return muestras
+    },
+    [modelsLoaded]
+  )
+
   // 3) Captura el embedding completo (al pulsar el botón)
   const capturarEmbedding = useCallback(async (): Promise<number[] | null> => {
     if (!videoRef.current || !modelsLoaded) return null
@@ -193,5 +219,6 @@ export const useFaceCapture = () => {
     iniciarCamara,
     detenerCamara,
     capturarEmbedding,
+    medirLiveness,
   }
 }

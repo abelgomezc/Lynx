@@ -1,18 +1,7 @@
 /*
  * Lynx - © 2026 Abel Gomez. Todos los derechos reservados.
+ * (Las acciones de liveness se movieron a livenessUtils.ts)
  */
-
-/** Instrucciones aleatorias de liveness (anti-spoofing). */
-export const ACCIONES_LIVENESS = [
-  'Parpadea dos veces',
-  'Gira la cabeza levemente a la derecha',
-  'Sonríe',
-  'Abre la boca',
-] as const
-
-export function accionLivenessAleatoria(): string {
-  return ACCIONES_LIVENESS[Math.floor(Math.random() * ACCIONES_LIVENESS.length)]
-}
 
 /** Captura un fotograma del video como dataURL (base64) para evidencia. */
 export function capturarFoto(video: HTMLVideoElement): string {

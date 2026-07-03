@@ -97,6 +97,29 @@ public class AuthServiceImpl implements AuthService {
     private static final Random RANDOM = new Random();
     private static final String PREFIJO_FRASE = "frase:";
 
+    // Bancos de palabras para componer frases dinámicas (anti-replay fuerte):
+    // el espacio de combinaciones es enorme, así que es inviable tener una
+    // grabación previa del usuario diciendo justo esa frase.
+    private static final List<String> SUJETOS = List.of(
+            "El río", "La montaña", "El colibrí", "El mercado", "La luna", "El viento",
+            "El café", "La feria", "El puente", "El sendero", "La cascada", "El faro",
+            "El bosque", "La canoa", "El cóndor", "La hoguera", "El arroyo", "El telar");
+    private static final List<String> VERBOS = List.of(
+            "cruza", "brilla sobre", "vuela entre", "aparece en", "ilumina", "recorre",
+            "cubre", "reposa junto a", "despierta en", "resuena por", "desciende hacia");
+    private static final List<String> COMPLEMENTOS = List.of(
+            "Cuenca en enero", "los Andes al amanecer", "las flores del jardín",
+            "el valle verde", "la ciudad dormida", "la laguna tranquila",
+            "los campos dorados", "las calles de piedra", "el páramo frío",
+            "la playa lejana", "los techos rojos", "el mirador antiguo");
+
+    /** Compone una frase natural y prácticamente única para leer en voz alta. */
+    private String componerFrase() {
+        return SUJETOS.get(RANDOM.nextInt(SUJETOS.size())) + " "
+                + VERBOS.get(RANDOM.nextInt(VERBOS.size())) + " "
+                + COMPLEMENTOS.get(RANDOM.nextInt(COMPLEMENTOS.size()));
+    }
+
     /** Pool de 50 frases en español latinoamericano natural (anti-replay). */
     private static final List<String> POOL_FRASES = List.of(
             "Las montañas de Azuay son verdes en mayo",
@@ -280,7 +303,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public String fraseRegistro() {
-        return POOL_FRASES.get(RANDOM.nextInt(POOL_FRASES.size()));
+        return componerFrase();
     }
 
     @Override
@@ -294,7 +317,8 @@ public class AuthServiceImpl implements AuthService {
     public AuthResponse loginFacial(LoginFaceRequest request) {
         FaceVerificarDto dto = FaceVerificarDto.builder()
                 .embedding(request.getEmbedding())
-                .livenessSuperado(true)
+                .accionLiveness(request.getAccionLiveness())
+                .muestrasLiveness(request.getMuestrasLiveness())
                 .ipAddress(request.getIpAddress())
                 .build();
         FaceVerificacionDto verif = faceServiceClient.verificarRostro(dto);
@@ -425,7 +449,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public String generarFrase(Long idUsuario) {
-        String frase = POOL_FRASES.get(RANDOM.nextInt(POOL_FRASES.size()));
+        String frase = componerFrase();
         redisTemplate.opsForValue().set(PREFIJO_FRASE + idUsuario, frase,
                 frasesTtlSegundos, TimeUnit.SECONDS);
         return frase;

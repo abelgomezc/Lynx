@@ -48,9 +48,21 @@ export const authApi = {
       .get<{ disponible: boolean }>(`/auth/register/disponible?email=${encodeURIComponent(email)}`)
       .then((r) => r.data.disponible),
 
-  loginFacial: (embedding: number[], ipAddress?: string, dispositivo?: string) =>
+  loginFacial: (
+    embedding: number[],
+    accionLiveness: string,
+    muestrasLiveness: { ear: number; mar: number; yaw: number }[],
+    ipAddress?: string,
+    dispositivo?: string
+  ) =>
     api
-      .post<AuthResponse>('/auth/login/face', { embedding, ipAddress, dispositivo })
+      .post<AuthResponse>('/auth/login/face', {
+        embedding,
+        accionLiveness,
+        muestrasLiveness,
+        ipAddress,
+        dispositivo,
+      })
       .then((r) => r.data),
 
   loginVoz: (

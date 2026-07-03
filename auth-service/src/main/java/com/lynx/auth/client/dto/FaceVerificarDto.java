@@ -3,6 +3,7 @@
  */
 package com.lynx.auth.client.dto;
 
+import com.lynx.auth.dto.MuestraLivenessDto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,7 +19,7 @@ import java.util.List;
 public class FaceVerificarDto {
     private List<Double> embedding;
     private String accionLiveness;
-    private Boolean livenessSuperado;
+    private List<MuestraLivenessDto> muestrasLiveness;
     private String fotoCaptura;
     private String ipAddress;
 }

@@ -1,12 +1,13 @@
 /*
  * Lynx - © 2026 Abel Gomez. Todos los derechos reservados.
- * Genera una instrucción de liveness y un countdown de verificación.
+ * Genera una instrucción de liveness (con código para el backend) y un
+ * countdown de verificación.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { accionLivenessAleatoria } from '../utils/biometricUtils'
+import { accionLivenessAleatoria, type AccionLiveness } from '../utils/livenessUtils'
 
 export const useLiveness = (segundos = 5) => {
-  const [accion, setAccion] = useState<string>(accionLivenessAleatoria())
+  const [accion, setAccion] = useState<AccionLiveness>(accionLivenessAleatoria())
   const [restante, setRestante] = useState(segundos)
   const [activo, setActivo] = useState(false)
   const [superado, setSuperado] = useState(false)

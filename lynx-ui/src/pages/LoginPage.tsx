@@ -68,18 +68,35 @@ export function LoginPage() {
     setPaso('inicio')
   }
 
+  const [midiendoLiveness, setMidiendoLiveness] = useState(false)
+
   const verificarRostro = async () => {
     setError(null)
     setCargando(true)
     try {
+      // 1) Prueba de vida: registra el movimiento real (~3.5s) mientras el
+      //    usuario ejecuta la acción. El backend la verifica (anti-foto).
+      setMidiendoLiveness(true)
+      const muestras = await face.medirLiveness(3500)
+      setMidiendoLiveness(false)
       liveness.confirmar()
+
+      // 2) Captura del embedding facial
       const emb = await face.capturarEmbedding()
       if (!emb) {
         setError('No se detectó tu rostro. Centra tu cara e intenta de nuevo.')
         setCaraOk(false)
         return
       }
-      const res = await authApi.loginFacial(emb, undefined, detectarDispositivo())
+
+      // 3) Envía embedding + acción + serie de muestras al backend
+      const res = await authApi.loginFacial(
+        emb,
+        liveness.accion.codigo,
+        muestras,
+        undefined,
+        detectarDispositivo()
+      )
       setCaraOk(true)
       setIdUsuario(res.usuario!.id)
       setFrase(res.frase ?? '')
@@ -88,8 +105,9 @@ export function LoginPage() {
       setPaso('voz')
     } catch (e: any) {
       setCaraOk(false)
-      setError(e?.response?.data?.mensaje ?? 'Rostro no reconocido. Acceso denegado.')
+      setError(e?.response?.data?.mensaje ?? 'Rostro no reconocido o prueba de vida fallida.')
     } finally {
+      setMidiendoLiveness(false)
       setCargando(false)
     }
   }
@@ -179,7 +197,11 @@ export function LoginPage() {
             {face.cargandoModelos && (
               <Alert tipo="info" mensaje="Cargando modelos de reconocimiento facial..." />
             )}
-            <LivenessCheck accion={liveness.accion} restante={liveness.restante} />
+            <LivenessCheck
+              accion={liveness.accion}
+              restante={liveness.restante}
+              midiendo={midiendoLiveness}
+            />
             <FaceCapture
               videoRef={face.videoRef}
               estado={caraOk === false ? 'rojo' : face.estado}

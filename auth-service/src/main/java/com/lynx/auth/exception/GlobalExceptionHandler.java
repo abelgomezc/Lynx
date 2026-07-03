@@ -3,9 +3,11 @@
  */
 package com.lynx.auth.exception;
 
+import feign.FeignException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -38,6 +40,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("VALIDACION_FALLIDA", msg,
                         LocalDateTime.now(), SERVICIO, req.getRequestURI()));
+    }
+
+    /**
+     * Reenvía tal cual los errores de servicios dependientes (face/voice)
+     * con su estado y mensaje originales. Así, p. ej., un spoofing (403)
+     * detectado en face-service llega al cliente como 403 y no como 500.
+     */
+    @ExceptionHandler(FeignException.class)
+    public ResponseEntity<String> handleFeign(FeignException ex) {
+        int status = ex.status() > 0 ? ex.status() : HttpStatus.BAD_GATEWAY.value();
+        String body = ex.contentUTF8();
+        log.warn("Error de servicio dependiente [{}]: {}", status, body);
+        if (body == null || body.isBlank()) {
+            body = "{\"codigo\":\"SERVICIO_DEPENDIENTE\",\"mensaje\":\"Error en un servicio dependiente\"}";
+        }
+        return ResponseEntity.status(status).contentType(MediaType.APPLICATION_JSON).body(body);
     }
 
     @ExceptionHandler(Exception.class)

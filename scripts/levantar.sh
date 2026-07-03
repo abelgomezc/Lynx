@@ -13,6 +13,10 @@ DB="jdbc:postgresql://localhost:5433"
 mkdir -p logs
 
 echo "1/3 · Infraestructura Docker..."
+if ! docker info > /dev/null 2>&1; then
+  echo "  ✗ Docker no responde. Abre Docker Desktop y espera 'Engine running', luego reintenta."
+  exit 1
+fi
 docker compose -f docker-compose.infra.yml up -d
 
 echo "2/3 · Eureka (espero a que registre)..."
